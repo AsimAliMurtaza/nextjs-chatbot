@@ -1,19 +1,26 @@
 "use client";
 
-import { useChat } from "ai/react";
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
+  Box,
+  Flex,
+  Input,
+  Button,
+  Avatar,
+  Text,
+  IconButton,
+  useColorMode,
+  useColorModeValue,
+  VStack,
+  HStack,
+  Divider,
+  Spinner,
   Card,
-  CardContent,
-  CardFooter,
   CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronLeft, ChevronRight, Moon, Sun } from "lucide-react";
+  CardBody,
+  CardFooter,
+} from "@chakra-ui/react";
+import { Moon, Sun, Plus } from "lucide-react";
 
 interface Message {
   id: number;
@@ -21,60 +28,28 @@ interface Message {
   content: string;
 }
 
-interface ChatHistoryItem {
-  id: number;
-  title: string;
-}
-
 export default function ChatPage() {
-  const pfp = process.env.NEXT_PUBLIC_PFP;
-  const {
-    input,
-    handleInputChange: originalHandleInputChange,
-    handleSubmit,
-    isLoading,
-  } = useChat();
+  const { colorMode, toggleColorMode } = useColorMode();
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [chatHistory, setChatHistory] = useState<string[]>([]);
+  const [activeChat, setActiveChat] = useState<string | null>(null);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    originalHandleInputChange(e);
-  };
+  const ollamaEndpoint = "http://localhost:11434/api/generate";
+  const modelName = "qwen2.5:3b";
 
-  const [messages, setMessages] = useState<
-    { id: number; role: string; content: string }[]
-  >([]);
+  const bgColor = useColorModeValue("gray.50", "gray.900");
+  const cardBg = useColorModeValue("white", "gray.800");
+  const textColor = useColorModeValue("gray.900", "white");
+  const sidebarBg = useColorModeValue("gray.100", "gray.700");
 
-  const addMessage = (message: {
-    id: number;
-    role: string;
-    content: string;
-  }) => {
+  const addMessage = (message: Message) => {
     setMessages((prevMessages) => [...prevMessages, message]);
   };
 
-  const [isTyping, setIsTyping] = useState(false);
-  const [selectedChat, setSelectedChat] = useState<number | null>(null);
-  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([
-    { id: 1, title: "First Chat" },
-    { id: 2, title: "Second Chat" },
-  ]);
-  const [showSidebar, setShowSidebar] = useState(true);
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.classList.toggle("dark", !darkMode);
-  };
-
-  useEffect(() => {
-    const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    setDarkMode(isDark);
-    document.documentElement.classList.toggle("dark", isDark);
-  }, []);
-
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     if (!input.trim()) return;
 
     const userMessage: Message = {
@@ -82,218 +57,197 @@ export default function ChatPage() {
       role: "user",
       content: input,
     };
-
     addMessage(userMessage);
-
+    setInput("");
     setIsTyping(true);
+
+    const assistantMessage: Message = {
+      id: Date.now() + 1,
+      role: "assistant",
+      content: "",
+    };
+    setMessages((prevMessages) => [...prevMessages, assistantMessage]);
+
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch(ollamaEndpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: [{ role: "user", content: input }],
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelName, prompt: input, stream: true }),
       });
 
-      const data = await response.json();
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("Failed to read response stream");
 
-      const assistantMessage: Message = {
-        id: Date.now() + 1,
-        role: "assistant",
-        content: data.content || "No response from assistant.",
-      };
-      addMessage(assistantMessage);
+      const decoder = new TextDecoder();
+      let fullResponse = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // Decode the chunk and split it into individual JSON objects
+        const chunk = decoder.decode(value, { stream: true });
+        const jsonChunks = chunk
+          .split("\n")
+          .filter((line) => line.trim() !== "");
+
+        for (const jsonChunk of jsonChunks) {
+          try {
+            const parsedChunk = JSON.parse(jsonChunk);
+            if (parsedChunk.response) {
+              fullResponse += parsedChunk.response;
+              setMessages((prevMessages) => {
+                const updatedMessages = [...prevMessages];
+                updatedMessages[updatedMessages.length - 1] = {
+                  ...assistantMessage,
+                  content: fullResponse,
+                };
+                return updatedMessages;
+              });
+            }
+          } catch (error) {
+            console.error("Error parsing JSON chunk:", error);
+          }
+        }
+      }
     } catch (error) {
-      console.error("Error fetching model response:", error);
-      const errorMessage: Message = {
-        id: Date.now() + 2,
-        role: "assistant",
-        content: "Sorry, something went wrong.",
-      };
-      addMessage(errorMessage);
+      console.error("Ollama API error:", error);
+      setMessages((prevMessages) => {
+        const updatedMessages = [...prevMessages];
+        updatedMessages[updatedMessages.length - 1] = {
+          ...assistantMessage,
+          content: "Error: Unable to generate response.",
+        };
+        return updatedMessages;
+      });
     } finally {
       setIsTyping(false);
     }
-
-    originalHandleInputChange({
-      target: { value: "" },
-    } as React.ChangeEvent<HTMLInputElement>);
+  };
+  const startNewChat = () => {
+    setMessages([]);
+    setActiveChat(null);
   };
 
   return (
-    <div
-      className={`flex min-h-screen ${
-        darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-black"
-      }`}
-    >
-      {showSidebar && (
-        <aside
-          className={`shadow-md border-r transition-all duration-300 ${
-            isCollapsed ? "w-20" : "w-64"
-          } ${
-            darkMode
-              ? "bg-gray-800 border-gray-700"
-              : "bg-white border-gray-200"
-          }`}
-        >
-          <div className="flex justify-between items-center p-4">
-            {!isCollapsed && (
-              <h2 className="text-lg font-semibold">Chat History</h2>
-            )}
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                className="p-2"
-              >
-                {isCollapsed ? (
-                  <ChevronRight size={20} />
-                ) : (
-                  <ChevronLeft size={20} />
-                )}
-              </Button>
-            </div>
-          </div>
-          <ScrollArea className="h-[calc(100vh-5rem)] px-2">
-            {chatHistory.map((chat) => (
-              <div
-                key={chat.id}
-                className={`flex items-center p-3 rounded-md cursor-pointer ${
-                  selectedChat === chat.id
-                    ? darkMode
-                      ? "bg-blue-600 text-white"
-                      : "bg-blue-500 text-white"
-                    : darkMode
-                    ? "hover:bg-gray-700"
-                    : "hover:bg-gray-100"
-                }`}
-                onClick={() => setSelectedChat(chat.id)}
-              >
-                <Avatar className="w-8 h-8 mr-3">
-                  <AvatarFallback>{chat.title.charAt(0)}</AvatarFallback>
-                </Avatar>
-                {!isCollapsed && <span className="truncate">{chat.title}</span>}
-              </div>
-            ))}
-          </ScrollArea>
-        </aside>
-      )}
-
-      <div className="flex-grow flex flex-col">
-        <header
-          className={`flex justify-between items-center px-6 py-4 shadow-md ${
-            darkMode ? "bg-gray-800 text-white" : "bg-white text-black"
-          }`}
-        >
-          <div className="flex items-center space-x-3">
-            {!showSidebar && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowSidebar(true)}
-                className="p-2"
-              >
-                <ChevronRight size={20} />
-              </Button>
-            )}
-            <h1 className="text-2xl font-semibold">CHATBGT</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleDarkMode}
-              className="p-2"
-              aria-label="Toggle dark mode"
-            >
-              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </Button>
-            <Avatar className="w-10 h-10 cursor-pointer">
-              <AvatarImage src={`${pfp}`} alt="Profile" />
-              <AvatarFallback>P</AvatarFallback>
-            </Avatar>
-          </div>
-        </header>
-
-        <div className="flex-grow flex flex-col items-center p-6">
-          <Card
-            className={`w-full max-w-3xl shadow-lg ${
-              darkMode ? "bg-gray-800 text-white" : "bg-white text-black"
-            }`}
+    <Flex minH="100vh" bg={bgColor}>
+      {/* Sidebar */}
+      <Box
+        w="300px"
+        borderRight="1px solid"
+        borderColor={useColorModeValue("gray.200", "gray.600")}
+        bg={sidebarBg}
+        p={4}
+      >
+        <VStack align="stretch" spacing={4}>
+          <Button
+            leftIcon={<Plus size={16} />}
+            colorScheme="blue"
+            onClick={startNewChat}
           >
-            <CardHeader>
-              <CardTitle>Chat</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[60vh] pr-4">
+            New Chat
+          </Button>
+          <Divider />
+          <Text fontSize="lg" fontWeight="bold">
+            Chat History
+          </Text>
+          <VStack align="stretch" spacing={2}>
+            {chatHistory.map((chat, index) => (
+              <Button
+                key={index}
+                variant="ghost"
+                justifyContent="flex-start"
+                onClick={() => setActiveChat(chat)}
+              >
+                {chat}
+              </Button>
+            ))}
+          </VStack>
+        </VStack>
+      </Box>
+
+      {/* Main Content */}
+      <Flex flex="1" direction="column">
+        {/* Header */}
+        <Box
+          p={4}
+          borderBottom="1px solid"
+          borderColor={useColorModeValue("gray.200", "gray.600")}
+          bg={cardBg}
+        >
+          <Flex justify="space-between" align="center">
+            <Text fontSize="2xl" fontWeight="bold">
+              Chat
+            </Text>
+            <HStack spacing={4}>
+              <IconButton
+                aria-label="Toggle Dark Mode"
+                icon={colorMode === "light" ? <Moon /> : <Sun />}
+                onClick={toggleColorMode}
+                variant="ghost"
+              />
+              <Avatar size="sm" />
+            </HStack>
+          </Flex>
+        </Box>
+
+        {/* Chat Area */}
+        <Flex flex="1" overflow="hidden">
+          <Card w="100%" mx="auto" bg={cardBg}>
+            <CardBody overflowY="auto" maxH="60vh">
+              <VStack align="stretch" spacing={4}>
                 {messages.map((m) => (
-                  <div
+                  <Flex
                     key={m.id}
-                    className={`mb-4 flex ${
-                      m.role === "user" ? "justify-end" : "justify-start"
-                    }`}
+                    direction={m.role === "user" ? "row-reverse" : "row"}
+                    align="flex-end"
                   >
-                    <div
-                      className={`flex items-end ${
-                        m.role === "user" ? "flex-row-reverse" : "flex-row"
-                      }`}
+                    <Avatar
+                      size="sm"
+                      name={m.role === "user" ? "user" : "AI"}
+                      mr={2}
+                    />
+                    <Box
+                      p={3}
+                      borderRadius="2xl"
+                      bg={
+                        m.role === "user"
+                          ? "blue.500"
+                          : useColorModeValue("gray.200", "gray.700")
+                      }
+                      color={m.role === "user" ? "white" : textColor}
+                      maxW="70%"
                     >
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback>
-                          {m.role === "user" ? "U" : "AI"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div
-                        className={`mx-2 rounded-xl px-4 py-2 ${
-                          m.role === "user"
-                            ? darkMode
-                              ? "bg-blue-600 text-white"
-                              : "bg-blue-500 text-white"
-                            : darkMode
-                            ? "bg-gray-700 text-gray-300"
-                            : "bg-gray-200 text-black"
-                        }`}
-                      >
-                        {m.content}
-                      </div>
-                    </div>
-                  </div>
+                      <Text>{m.content}</Text>
+                    </Box>
+                  </Flex>
                 ))}
                 {isTyping && (
-                  <div className="flex justify-start items-center">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback>AI</AvatarFallback>
-                    </Avatar>
-                    <div className="mx-2 rounded-xl px-4 py-2 bg-gray-300 dark:bg-gray-700 text-black dark:text-gray-300">
-                      <span className="dot-flashing" />
-                    </div>
-                  </div>
+                  <Flex align="center">
+                    <Spinner size="sm" mr={2} />
+                    <Text>AI is typing...</Text>
+                  </Flex>
                 )}
-              </ScrollArea>
-            </CardContent>
+              </VStack>
+            </CardBody>
             <CardFooter>
-              <form onSubmit={onSubmit} className="flex w-full space-x-3">
-                <Input
-                  value={input}
-                  onChange={handleInputChange}
-                  placeholder="Type your message..."
-                  className="flex-grow rounded-full dark:bg-gray-700 dark:text-gray-300"
-                />
-                <Button
-                  type="submit"
-                  disabled={isLoading || isTyping}
-                  className="flex-shrink-0 px-4"
-                >
-                  Send
-                </Button>
+              <form onSubmit={onSubmit} style={{ width: "100%" }}>
+                <Flex gap={2}>
+                  <Input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Type your message..."
+                    flex="1"
+                  />
+                  <Button type="submit" colorScheme="blue" px={6}>
+                    Send
+                  </Button>
+                </Flex>
               </form>
             </CardFooter>
           </Card>
-        </div>
-      </div>
-    </div>
+        </Flex>
+      </Flex>
+    </Flex>
   );
 }
