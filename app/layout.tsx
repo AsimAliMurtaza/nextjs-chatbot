@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Chat App",
-  description: "Chat App",
+  title: "Custom Chatbot",
+  description: "Chatbot",
 };
 
 export default function RootLayout({
