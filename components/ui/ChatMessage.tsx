@@ -18,24 +18,29 @@ export default function ChatMessage({ role, content }: ChatMessageProps) {
   return (
     <Flex
       direction={role === "user" ? "row-reverse" : "row"}
-      align="flex-start" // Align to the top for better consistency
-      mb={4} // Add some margin bottom for spacing between messages
+      alignItems="flex-start" // Align items to the top
+      mb={4}
     >
-      <Avatar
-        size="sm"
-        name={role === "user" ? "User" : "AI"}
-        mr={2}
-        bg={avatarBg} // Set avatar background color
-        borderRadius="full" // Rounded avatar
-      />
+      <Flex
+        alignItems="center" // Vertically center the avatar
+        mr={role === "user" ? 0 : 2} // Add right margin for assistant avatar
+        ml={role === "user" ? 2 : 0} // Add left margin for user avatar
+      >
+        <Avatar
+          size="sm"
+          name={role === "user" ? "User" : "AI"}
+          bg={avatarBg}
+          borderRadius="full"
+        />
+      </Flex>
       <Box
         p={3}
         borderRadius="2xl"
         bg={role === "user" ? userBg : assistantBg}
         color={role === "user" ? userTextColor : assistantTextColor}
         maxW="70%"
-        boxShadow="sm" // Add a subtle shadow for depth
-        transition="background-color 0.3s ease" // Smooth transition for background
+        boxShadow="sm"
+        transition="background-color 0.3s ease"
       >
         <Text fontSize="sm">{content}</Text>
       </Box>

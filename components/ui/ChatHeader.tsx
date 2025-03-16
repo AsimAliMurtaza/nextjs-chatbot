@@ -32,7 +32,6 @@ export default function ChatHeader({ title }: ChatHeaderProps) {
       borderColor={borderColor}
       bg={bgColor}
       boxShadow={shadow} // Adding subtle shadow
-      borderRadius="xl" // Rounded corners for Material You feel
     >
       <Flex justify="space-between" align="center">
         <Text fontSize="2xl" fontWeight="semibold" color={textColor}>
