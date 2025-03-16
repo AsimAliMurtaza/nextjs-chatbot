@@ -180,7 +180,7 @@ export default function ChatPage() {
   const startNewChat = () => {
     const newChat: Chat = {
       id: Date.now().toString(),
-      title: `Chat ${chats.length + 1}`,
+      title: `Conversation ${chats.length + 1}`,
       messages: [],
       lastUpdated: Date.now(),
     };
