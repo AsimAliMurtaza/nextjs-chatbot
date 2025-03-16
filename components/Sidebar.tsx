@@ -99,8 +99,8 @@ export default function Sidebar({
                   key={chat.id}
                   justify="space-between"
                   bg={activeChat === chat.id ? activeChatBg : "transparent"}
-                  borderRadius="xl"
-                  p={2}
+                  borderRadius="20px"
+                  p={1}
                   _hover={{
                     bg:
                       activeChat === chat.id
@@ -111,7 +111,8 @@ export default function Sidebar({
                 >
                   <Tooltip label={chat.title}>
                     <Button
-                      variant="ghost"
+                      variant="unstyled"
+                      ml={-12}
                       justifyContent="flex-start"
                       flex="1"
                       onClick={() => loadChat(chat.id)}
@@ -119,7 +120,6 @@ export default function Sidebar({
                       textOverflow="ellipsis"
                       whiteSpace="nowrap"
                       color={textColor}
-                      borderRadius="xl"
                     >
                       {chat.title}
                     </Button>
@@ -165,8 +165,37 @@ export default function Sidebar({
             _hover={{ bg: buttonHoverBg }}
             onClick={startNewChat}
             borderRadius="full"
-            p={2} // Reduce padding for collapsed state
+            p={2}
           />
+          {chats.length > 0 ? (
+            chats.map((chat) => (
+              <Tooltip key={chat.id} label={chat.title}>
+                <IconButton
+                  aria-label={chat.title}
+                  icon={<Text fontSize="xs">{chat.title.charAt(0)}</Text>}
+                  bg={
+                    activeChat === chat.id
+                      ? activeChatBg
+                      : useColorModeValue("gray.200", "gray.700")
+                  }
+                  color={textColor}
+                  borderRadius="full"
+                  size="sm"
+                  onClick={() => loadChat(chat.id)}
+                  _hover={{
+                    bg:
+                      activeChat === chat.id
+                        ? activeChatBg
+                        : useColorModeValue("gray.300", "gray.600"),
+                  }}
+                />
+              </Tooltip>
+            ))
+          ) : (
+            <Text color={textColor} textAlign="center">
+              No chats available.
+            </Text>
+          )}
         </VStack>
       </Collapse>
     </Box>

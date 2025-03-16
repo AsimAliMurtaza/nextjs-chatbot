@@ -15,7 +15,7 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import Sidebar from "@/components/Sidebar";
-import ChatHeader from "@/components/ui/Chatheader";
+import ChatHeader from "@/components/ui/ChatHeader";
 import ChatMessage from "@/components/ui/ChatMessage";
 import ChatInput from "@/components/ui/ChatInput";
 
@@ -305,12 +305,7 @@ export default function ChatPage() {
                   {messages.map((m) => (
                     <ChatMessage key={m.id} role={m.role} content={m.content} />
                   ))}
-                  {isTyping && (
-                    <Flex align="center">
-                      <Spinner size="sm" mr={2} />
-                      <Text>AI is typing...</Text>
-                    </Flex>
-                  )}
+                  
                   <div ref={messagesEndRef} />
                 </VStack>
               )}
