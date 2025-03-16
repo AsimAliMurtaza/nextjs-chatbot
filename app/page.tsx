@@ -97,6 +97,35 @@ export default function ChatPage() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
   }, [chats]);
 
+  useEffect(() => {
+    const savedChats = localStorage.getItem(STORAGE_KEY);
+    if (savedChats) {
+      try {
+        const parsedChats = JSON.parse(savedChats) as Chat[];
+        setChats(parsedChats); // Set chats
+        if (!activeChat && parsedChats.length > 0) {
+          const mostRecent = parsedChats.sort(
+            (a, b) => b.lastUpdated - a.lastUpdated
+          )[0];
+          setActiveChat(mostRecent.id); // Set active chat
+          setMessages(mostRecent.messages); // Load messages
+        }
+      } catch (error) {
+        console.error("Error parsing saved chats:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load saved chats.",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      } finally {
+        setIsLoading(false); // Set loading to false after initial load
+      }
+    } else {
+      setIsLoading(false); // Set loading to false if no saved chats
+    }
+  }, [activeChat, toast]);
   // Add a new message to the chat
   const addMessage = useCallback((message: Message) => {
     setMessages((prevMessages) => [...prevMessages, message]);
@@ -196,7 +225,6 @@ export default function ChatPage() {
     }
   };
 
-  // Start a new chat
   const startNewChat = useCallback(() => {
     const newChat: Chat = {
       id: Date.now().toString(),
@@ -204,28 +232,34 @@ export default function ChatPage() {
       messages: [],
       lastUpdated: Date.now(),
     };
-    setChats((prevChats) => [...prevChats, newChat]);
-    setActiveChat(newChat.id);
-    setMessages([]);
+    setChats((prevChats) => [...prevChats, newChat]); // Update chats
+    setActiveChat(newChat.id); // Set active chat
+    setMessages([]); // Clear messages
   }, [chats]);
 
   // Delete a chat
-  const deleteChat = useCallback((id: string) => {
-    setChats((prevChats) => prevChats.filter((chat) => chat.id !== id));
-    if (activeChat === id) {
-      setActiveChat(null);
-      setMessages([]);
-    }
-  }, [activeChat]);
+  const deleteChat = useCallback(
+    (id: string) => {
+      setChats((prevChats) => prevChats.filter((chat) => chat.id !== id)); // Update chats
+      if (activeChat === id) {
+        setActiveChat(null); // Clear active chat
+        setMessages([]); // Clear messages
+      }
+    },
+    [activeChat]
+  );
 
   // Load a chat
-  const loadChat = useCallback((id: string) => {
-    const chat = chats.find((chat) => chat.id === id);
-    if (chat) {
-      setActiveChat(chat.id);
-      setMessages(chat.messages);
-    }
-  }, [chats]);
+  const loadChat = useCallback(
+    (id: string) => {
+      const chat = chats.find((chat) => chat.id === id);
+      if (chat) {
+        setActiveChat(chat.id); // Set active chat
+        setMessages(chat.messages); // Load messages
+      }
+    },
+    [chats]
+  );
 
   // Save the current chat
   const saveCurrentChat = useCallback(() => {
@@ -233,17 +267,16 @@ export default function ChatPage() {
       setChats((prevChats) =>
         prevChats.map((chat) =>
           chat.id === activeChat
-            ? { ...chat, messages, lastUpdated: Date.now() }
+            ? { ...chat, messages, lastUpdated: Date.now() } // Update chat
             : chat
         )
       );
     }
   }, [activeChat, messages]);
-
   return (
     <Flex minH="100vh" bg={bgColor}>
       <Sidebar
-        chats={chats}
+        chats={chats} // Ensure this is passed correctly
         activeChat={activeChat}
         startNewChat={startNewChat}
         loadChat={loadChat}
@@ -251,7 +284,6 @@ export default function ChatPage() {
         sidebarWidth={sidebarWidth}
         setSidebarWidth={setSidebarWidth}
       />
-
       <Flex flex="1" direction="column">
         <ChatHeader
           title={

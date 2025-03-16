@@ -12,6 +12,7 @@ import {
   useColorModeValue,
   Tooltip,
   Collapse,
+  Heading,
 } from "@chakra-ui/react";
 import { Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
@@ -66,8 +67,7 @@ export default function Sidebar({
       bg={sidebarBg}
       p={isCollapsed ? 2 : 4} // Reduce padding when collapsed
       position="relative"
-      overflowY="auto"
-      borderRadius="xl"
+      borderRightRadius="xl"
       boxShadow="md"
       transition="width 0.3s ease, padding 0.3s ease" // Smooth transitions
     >
@@ -75,10 +75,9 @@ export default function Sidebar({
       <IconButton
         aria-label="Toggle Sidebar"
         icon={isCollapsed ? <ChevronRight /> : <ChevronLeft />}
-        variant="ghost"
         position="absolute"
         top="4"
-        right={isCollapsed ? "-12px" : "-16px"} // Adjust position based on collapse state
+        right={isCollapsed ? "18px" : "8px"} // Adjust position based on collapse state
         onClick={toggleCollapse}
         borderRadius="full"
         boxShadow="md"
@@ -87,7 +86,61 @@ export default function Sidebar({
 
       {/* Expanded Sidebar Content */}
       <Collapse in={!isCollapsed} animateOpacity>
-      <Button
+        <VStack align="stretch" spacing={4}>
+          <Heading size="lg">ChatBot</Heading>
+          <Divider mt={4} borderColor={borderColor} />
+          <Text fontSize="lg" fontWeight="semibold" color={textColor}>
+            History
+          </Text>
+          <VStack align="stretch" spacing={2} overflowY="auto" maxH="70vh">
+            {chats.length > 0 ? (
+              chats.map((chat) => (
+                <HStack
+                  key={chat.id}
+                  justify="space-between"
+                  bg={activeChat === chat.id ? activeChatBg : "transparent"}
+                  borderRadius="xl"
+                  p={2}
+                  _hover={{
+                    bg:
+                      activeChat === chat.id
+                        ? activeChatBg
+                        : useColorModeValue("gray.150", "gray.650"),
+                  }}
+                  transition="background-color 0.2s"
+                >
+                  <Tooltip label={chat.title}>
+                    <Button
+                      variant="ghost"
+                      justifyContent="flex-start"
+                      flex="1"
+                      onClick={() => loadChat(chat.id)}
+                      overflow="hidden"
+                      textOverflow="ellipsis"
+                      whiteSpace="nowrap"
+                      color={textColor}
+                      borderRadius="xl"
+                    >
+                      {chat.title}
+                    </Button>
+                  </Tooltip>
+                  <IconButton
+                    aria-label="Delete chat"
+                    icon={<Trash2 size={16} />}
+                    variant="ghost"
+                    onClick={() => deleteChat(chat.id)}
+                    _hover={{ bg: deleteHoverBg, color: deleteHoverColor }}
+                    borderRadius="full"
+                  />
+                </HStack>
+              ))
+            ) : (
+              <Text color={textColor} textAlign="center">
+                No chats available.
+              </Text>
+            )}
+          </VStack>
+          <Button
             leftIcon={<Plus size={16} />}
             bg={buttonBg}
             color="white"
@@ -97,56 +150,14 @@ export default function Sidebar({
           >
             New Chat
           </Button>
-        <VStack align="stretch" spacing={4}>
-          
-          <Divider borderColor={borderColor} />
-          <Text fontSize="lg" fontWeight="semibold" color={textColor}>
-            Chat History
-          </Text>
-          <VStack align="stretch" spacing={2}>
-            {chats.map((chat) => (
-              <HStack
-                key={chat.id}
-                justify="space-between"
-                bg={activeChat === chat.id ? activeChatBg : "transparent"}
-                borderRadius="xl"
-                p={2}
-                _hover={{ bg: activeChat === chat.id ? activeChatBg : useColorModeValue("gray.150", "gray.650") }}
-                transition="background-color 0.2s"
-              >
-                <Tooltip label={chat.title}>
-                  <Button
-                    variant="ghost"
-                    justifyContent="flex-start"
-                    flex="1"
-                    onClick={() => loadChat(chat.id)}
-                    overflow="hidden"
-                    textOverflow="ellipsis"
-                    whiteSpace="nowrap"
-                    color={textColor}
-                    borderRadius="xl"
-                  >
-                    {chat.title}
-                  </Button>
-                </Tooltip>
-                <IconButton
-                  aria-label="Delete chat"
-                  icon={<Trash2 size={16} />}
-                  variant="ghost"
-                  onClick={() => deleteChat(chat.id)}
-                  _hover={{ bg: deleteHoverBg, color: deleteHoverColor }}
-                  borderRadius="full"
-                />
-              </HStack>
-            ))}
-          </VStack>
         </VStack>
       </Collapse>
 
       {/* Collapsed Sidebar Content */}
       <Collapse in={isCollapsed} animateOpacity>
         <VStack align="center" spacing={4}>
-          <Button
+          <IconButton
+            mt={20}
             aria-label="New Chat"
             icon={<Plus size={16} />}
             bg={buttonBg}
